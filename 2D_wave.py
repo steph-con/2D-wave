@@ -31,8 +31,8 @@ print("Import complete.")
 # %%
 
 # User parameters
-T = 20                             # total simulation time
-save_csv = True
+T = 50                             # total simulation time
+save_csv = False
 save_gif = True
 apply_smoothing = False
 output_folder = "test"
