@@ -1,8 +1,8 @@
-# 2D-WAVE SIMULATION
+# 🌊 2D-WAVE SIMULATION
 
-Two-dimensional wave simulation in python.
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg) ![Python](https://img.shields.io/badge/python-3.13-blue.svg) ![Conda](https://img.shields.io/badge/conda-ready-brightgreen.svg)
 
-## Context
+## Overview
 
 A square pond of length 10 by 10 is subject to a force that produces a ripple on its surface. The aim is to simulate the effect of this disturbance on the fluid, namely to estimate the height of the fluid at each point in the pond.
 
@@ -37,9 +37,22 @@ $$
 \end{align*}
 $$
 
-## To-do
+---
+
+## ✅ To-do
 
 - [x] Add result files for a 20s simulation
 - [ ] Add functionality for energy calculations: Check energy conservation
 - [ ] Add Jupyter Notebook file explaining the theory behind the solution
 - [ ] Switch to using qt backend and add capability for frame navigation
+
+---
+
+## ⚙️ Installation
+
+You can run this project using **Conda**.
+
+```bash
+conda env create -f wave-env.yml
+conda activate wave-env
+```
