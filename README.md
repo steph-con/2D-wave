@@ -1,4 +1,4 @@
-# 2D-wave
+# 2D-WAVE SIMULATION
 
 Two-dimensional wave simulation in python.
 
@@ -30,9 +30,16 @@ $$u(x, y, 0) = 0, \quad \forall x \in (0, 10), y \in (0, 10)$$
 
 $$
 \begin{align*}
-    u(0, y, t) &= 0, \quad \forall t, y \\
-    u(10, y, t) &= 0, \quad \forall t, y \\
-    u(x, 0, t) &= 0, \quad \forall t, x \\
-    u(x, 10, t) &= 0, \quad \forall t, x
+    u(0, y, t) &  = 0, \quad \forall t, y \\
+    u(10, y, t) & = 0, \quad \forall t, y \\
+    u(x, 0, t) &  = 0, \quad \forall t, x \\
+    u(x, 10, t) & = 0, \quad \forall t, x
 \end{align*}
 $$
+
+## To-do
+
+- [x] Add result files for a 20s simulation
+- [ ] Add functionality for energy calculations: Check energy conservation
+- [ ] Add Jupyter Notebook file explaining the theory behind the solution
+- [ ] Switch to using qt backend and add capability for frame navigation
