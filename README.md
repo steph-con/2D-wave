@@ -30,9 +30,9 @@ $$u(x, y, 0) = 0, \quad \forall x \in (0, 10), y \in (0, 10)$$
 
 $$
 \begin{align*}
-    u(0, y, t) = 0, \quad \forall t, y \\
-    u(10, y, t) = 0, \quad \forall t, y \\
-    u(x, 0, t) = 0, \quad \forall t, x \\
-    u(x, 10, t) = 0, \quad \forall t, x
+    u(0, y, t) &= 0, \quad \forall t, y \\
+    u(10, y, t) &= 0, \quad \forall t, y \\
+    u(x, 0, t) &= 0, \quad \forall t, x \\
+    u(x, 10, t) &= 0, \quad \forall t, x
 \end{align*}
 $$
