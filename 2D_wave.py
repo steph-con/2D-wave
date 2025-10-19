@@ -18,6 +18,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import animation, colors, ticker, image
+import seaborn as sns
 import pandas as pd
 import os
 import time
@@ -98,6 +99,10 @@ XX, YY = np.meshgrid(x, y)
 u_prev = np.zeros((N_x, N_y))           # u at t-dt
 u = np.zeros((N_x, N_y))                # u at t
 u_next = np.zeros((N_x, N_y))           # u at t+dt
+
+# set time and energy history lists to check energy conservation
+time_history = []
+energy_history = []
 
 
 u_all = np.zeros((n_frames, N_x, N_y))  # 3D array with all u values
@@ -297,6 +302,7 @@ def update_water_level(frame_idx: int) -> image.AxesImage:
 
     # frame actions
     t_display = frame_idx * time_per_frame
+    time_history.append(t_display)
 
     print(f"Generating frame {frame_idx} / {n_frames-1}")
 
@@ -367,6 +373,7 @@ amp = 0.0003
 
 ax.set_xlabel("x")
 ax.set_ylabel("y")
+ax.grid(ls=":")
 
 # set up colorbar
 norm = colors.Normalize(vmin=-amp, vmax=amp)
@@ -385,7 +392,7 @@ cbar = fig.colorbar(cax)
 # set colorbar label manually to avoid jittering movement as the scale changes
 cbar_label = "u(x,y,t)"
 fig.text(
-    x = cbar.ax.get_position().xmax*1.015,
+    x = cbar.ax.get_position().xmax*1.005,
     y = 0.5,
     s = cbar_label,
     rotation = 90,
@@ -433,13 +440,48 @@ if save_gif:
 
 os.chdir(cwd)
 
-plt.show()
+fig.show()
 print("Script finished.")
-plt.close("all")
+plt.close(fig)
 
 
 # for data inspection
 # df = pd.read_csv(csv_path)
+
+# TODO: make into a function and add kinetic and potential energy into plots
+energy_history = []
+energy_history.append(0)    # starting from rest
+
+# energy calculations for each frame
+for k in range(1, n_frames):
+    u_curr = u_all[k]
+    u_pr = u_all[k-1]
+
+    kinetic = 0.5 * np.sum(((u_curr - u_pr)/time_per_frame)**2)
+
+    gradx = (u_curr[2:,1:-1] - u_curr[:-2,1:-1])/(2*h)
+    grady = (u_curr[1:-1,2:] - u_curr[1:-1,:-2])/(2*h)
+    potential = 0.5 * c**2 * np.sum(gradx**2 + grady**2)
+
+    energy = kinetic + potential
+
+    energy_history.append(energy)
+
+
+# energy plot
+en_fig = plt.figure()
+sns.lineplot(x=time_history, y=energy_history)
+
+plt.grid(ls=":")
+plt.xlabel("Time (s)")
+plt.ylabel("Total Energy")
+plt.xlim(left=0, right=T)
+plt.ylim(bottom=0)
+plt.title("History of Total Energy in the system")
+
+plt.tight_layout()
+plt.show()
+
 
 print(f"--- {time.time() - start_time:.2f} seconds ---")
 
