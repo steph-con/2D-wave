@@ -42,7 +42,8 @@ $$
 ## ✅ To-do
 
 - [x] Add result files for a 50s simulation
-- [ ] Add functionality for energy calculations: Check energy conservation
+- [x] Add functionality to work from memory (for shorter simulations)
+- [x] Add functionality for energy calculations: Check energy conservation
 - [ ] Add Jupyter Notebook file explaining the theory behind the solution
 - [ ] Switch to using qt backend and add capability for frame navigation
 

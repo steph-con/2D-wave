@@ -18,6 +18,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib import animation, colors, ticker, image
+import seaborn as sns
 import pandas as pd
 import os
 import time
@@ -81,7 +82,7 @@ sf = 0.7                            # safety factor
 cfl_max = 1/np.sqrt(2)              # maximum Courant number
 dt = h/c * (sf * cfl_max)           # time step satisfying CFL condition
 
-fps_gif = 10                        # gif frames per second
+fps_gif = 10.0                        # gif frames per second
 
 n_frames = int(fps_gif * T) + 1
 time_per_frame = 1 / fps_gif
@@ -98,6 +99,10 @@ XX, YY = np.meshgrid(x, y)
 u_prev = np.zeros((N_x, N_y))           # u at t-dt
 u = np.zeros((N_x, N_y))                # u at t
 u_next = np.zeros((N_x, N_y))           # u at t+dt
+
+# set time and energy history lists to check energy conservation
+time_history = []
+energy_history = []
 
 
 u_all = np.zeros((n_frames, N_x, N_y))  # 3D array with all u values
@@ -297,6 +302,7 @@ def update_water_level(frame_idx: int) -> image.AxesImage:
 
     # frame actions
     t_display = frame_idx * time_per_frame
+    time_history.append(t_display)
 
     print(f"Generating frame {frame_idx} / {n_frames-1}")
 
@@ -367,6 +373,7 @@ amp = 0.0003
 
 ax.set_xlabel("x")
 ax.set_ylabel("y")
+ax.grid(ls=":")
 
 # set up colorbar
 norm = colors.Normalize(vmin=-amp, vmax=amp)
@@ -385,7 +392,7 @@ cbar = fig.colorbar(cax)
 # set colorbar label manually to avoid jittering movement as the scale changes
 cbar_label = "u(x,y,t)"
 fig.text(
-    x = cbar.ax.get_position().xmax*1.015,
+    x = cbar.ax.get_position().xmax*1.005,
     y = 0.5,
     s = cbar_label,
     rotation = 90,
@@ -433,13 +440,72 @@ if save_gif:
 
 os.chdir(cwd)
 
-plt.show()
+fig.show()
 print("Script finished.")
-plt.close("all")
+plt.close(fig)
 
 
 # for data inspection
 # df = pd.read_csv(csv_path)
 
+# %%
+# Calculate system energy and plot
+
+def calculate_energy(
+    u_all: np.ndarray = u_all,
+    dtime: float = time_per_frame,
+    gspace: float = h,
+    c: float = c
+) -> tuple[np.ndarray]:
+
+    num = u_all.shape[0]
+    kinetic = np.zeros(num)
+    potential = np.zeros(num)
+    frames = range(0,num)
+
+    for k in frames[1:]:
+        u_curr = u_all[k]
+        u_pr = u_all[k-1]
+
+        kinetic[k] = 0.5 * np.sum(((u_curr - u_pr)/dtime)**2)
+
+        gradx = (u_curr[2:,1:-1] - u_curr[:-2,1:-1])/(2*gspace)
+        grady = (u_curr[1:-1,2:] - u_curr[1:-1,:-2])/(2*gspace)
+        potential[k] = 0.5 * c**2 * np.sum(gradx**2 + grady**2)
+
+
+    df = pd.DataFrame({"Kinetic": kinetic, "Potential": potential })
+    df["Total"] = df["Kinetic"] + df["Potential"]
+    df["Frame"] = list(frames)
+    return(df)
+
+
+# energy_T, energy_K, energy_P = calculate_energy()
+energy_df = calculate_energy()
+energy_df["Time"] = time_history
+
+energy_df = energy_df.set_index("Time")
+
+# energy plot
+en_fig = plt.figure()
+# sns.lineplot(data = energy_df, x="Time", y="Total")
+# sns.lineplot(data = energy_df, x="Time", y="Potential")
+# sns.lineplot(data = energy_df, x="Time", y="Kinetic")
+sns.lineplot(data = energy_df[["Total", "Potential", "Kinetic"]])
+
+plt.grid(ls=":")
+plt.xlabel("Time (s)")
+plt.ylabel("Energy")
+plt.xlim(left=0, right=T)
+plt.ylim(bottom=0)
+plt.title("History of Total Energy in the system")
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+
 print(f"--- {time.time() - start_time:.2f} seconds ---")
 
+
+# %%
