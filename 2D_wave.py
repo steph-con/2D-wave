@@ -82,7 +82,7 @@ sf = 0.7                            # safety factor
 cfl_max = 1/np.sqrt(2)              # maximum Courant number
 dt = h/c * (sf * cfl_max)           # time step satisfying CFL condition
 
-fps_gif = 10                        # gif frames per second
+fps_gif = 10.0                        # gif frames per second
 
 n_frames = int(fps_gif * T) + 1
 time_per_frame = 1 / fps_gif
@@ -448,36 +448,58 @@ plt.close(fig)
 # for data inspection
 # df = pd.read_csv(csv_path)
 
-# TODO: make into a function and add kinetic and potential energy into plots
-energy_history = []
-energy_history.append(0)    # starting from rest
+# %%
+# Calculate system energy and plot
 
-# energy calculations for each frame
-for k in range(1, n_frames):
-    u_curr = u_all[k]
-    u_pr = u_all[k-1]
+def calculate_energy(
+    u_all: np.ndarray = u_all,
+    dtime: float = time_per_frame,
+    gspace: float = h,
+    c: float = c
+) -> tuple[np.ndarray]:
 
-    kinetic = 0.5 * np.sum(((u_curr - u_pr)/time_per_frame)**2)
+    num = u_all.shape[0]
+    kinetic = np.zeros(num)
+    potential = np.zeros(num)
+    frames = range(0,num)
 
-    gradx = (u_curr[2:,1:-1] - u_curr[:-2,1:-1])/(2*h)
-    grady = (u_curr[1:-1,2:] - u_curr[1:-1,:-2])/(2*h)
-    potential = 0.5 * c**2 * np.sum(gradx**2 + grady**2)
+    for k in frames[1:]:
+        u_curr = u_all[k]
+        u_pr = u_all[k-1]
 
-    energy = kinetic + potential
+        kinetic[k] = 0.5 * np.sum(((u_curr - u_pr)/dtime)**2)
 
-    energy_history.append(energy)
+        gradx = (u_curr[2:,1:-1] - u_curr[:-2,1:-1])/(2*gspace)
+        grady = (u_curr[1:-1,2:] - u_curr[1:-1,:-2])/(2*gspace)
+        potential[k] = 0.5 * c**2 * np.sum(gradx**2 + grady**2)
 
+
+    df = pd.DataFrame({"Kinetic": kinetic, "Potential": potential })
+    df["Total"] = df["Kinetic"] + df["Potential"]
+    df["Frame"] = list(frames)
+    return(df)
+
+
+# energy_T, energy_K, energy_P = calculate_energy()
+energy_df = calculate_energy()
+energy_df["Time"] = time_history
+
+energy_df = energy_df.set_index("Time")
 
 # energy plot
 en_fig = plt.figure()
-sns.lineplot(x=time_history, y=energy_history)
+# sns.lineplot(data = energy_df, x="Time", y="Total")
+# sns.lineplot(data = energy_df, x="Time", y="Potential")
+# sns.lineplot(data = energy_df, x="Time", y="Kinetic")
+sns.lineplot(data = energy_df[["Total", "Potential", "Kinetic"]])
 
 plt.grid(ls=":")
 plt.xlabel("Time (s)")
-plt.ylabel("Total Energy")
+plt.ylabel("Energy")
 plt.xlim(left=0, right=T)
 plt.ylim(bottom=0)
 plt.title("History of Total Energy in the system")
+plt.legend()
 
 plt.tight_layout()
 plt.show()
@@ -485,3 +507,5 @@ plt.show()
 
 print(f"--- {time.time() - start_time:.2f} seconds ---")
 
+
+# %%
