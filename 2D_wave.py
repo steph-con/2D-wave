@@ -31,7 +31,7 @@ print("Import complete.")
 # %%
 
 # User parameters
-T = 50                             # total simulation time
+T = 10                             # total simulation time
 save_csv = False
 save_gif = True
 apply_smoothing = False
@@ -95,15 +95,62 @@ XX, YY = np.meshgrid(x, y)
 
 # Initialise the 3 states of the water level u at the:
 # previous, current and next timestep
-u_prev = np.zeros((N_x, N_y))       # u at t-dt
-u = np.zeros((N_x, N_y))            # u at t
-u_next = np.zeros((N_x, N_y))       # u at t+dt
+u_prev = np.zeros((N_x, N_y))           # u at t-dt
+u = np.zeros((N_x, N_y))                # u at t
+u_next = np.zeros((N_x, N_y))           # u at t+dt
+
+
+u_all = np.zeros((n_frames, N_x, N_y))  # 3D array with all u values
+
+def get_u(f: int, x_coord: float, y_coord: float, u: np.ndarray = u_all) -> float:
+    """Get the value of u at a given frame index f and coordinates (x, y).
+
+    Parameters:
+        f (int): frame index
+        x_coord (float): x coordinate
+        y_coord (float): y coordinate
+        u (np.ndarray): 3D array with all u values (default: u_all)
+
+    Returns:
+        float: value of u at the given frame index and coordinates
+    """
+
+    x_idx = np.argwhere(x==x_coord)[0]
+    y_idx = np.argwhere(y==y_coord)[0]
+    return(u[f,x_idx,y_idx])
 
 print("Problem setup complete.")
 
 
 # Set up disturbance
-d_loc = (5.0,5.0)   # location (x, y)
+x_loc = 5.0     # x coordinate
+y_loc = 5.0     # y coordinate
+
+def find_nearest(axis: np.ndarray, location: float):
+    """Find the nearest node on the meshgrid to a given location.
+
+    Parameters:
+        axis (np.ndarray): 1D array of x or y coordinates
+        location (float): location to find the nearest node to
+
+    Returns:
+        float: nearest node on the meshgrid to the given location
+    """
+
+    axis = np.asarray(axis)
+    idx = (np.abs(axis - location)).argmin()
+    return(axis[idx])
+
+
+if np.argwhere(x==x_loc).size==0:
+    x_loc = find_nearest(x, x_loc)
+    print(f"Adjusted disturbance location for the available grid: {x_loc = :.1f}")
+
+if np.argwhere(y==y_loc).size==0:
+    y_loc = find_nearest(y, y_loc)
+    print(f"Adjusted disturbance location for the available grid: {y_loc = :.1f}")
+
+d_loc = (x_loc,y_loc)   # location (x, y)
 
 def disturb(t: float) -> float:
     """Generate a sinusoidal disturbance active in the first 2.5 seconds.
@@ -246,7 +293,7 @@ def update_water_level(frame_idx: int) -> image.AxesImage:
 
     print(f"Generating frame {frame_idx} / {n_frames-1}")
 
-    # store data every 5 frames
+    # write data every 5 frames
     if save_csv and frame_idx % (fps_gif//2) == 0:
         # print(f"Writing CSV: frame {frame_idx} / {n_frames-1}")
 
@@ -261,6 +308,9 @@ def update_water_level(frame_idx: int) -> image.AxesImage:
         with open(csv_path, "a") as f:
             np.savetxt(f, rows, delimiter=",")
 
+
+    # save u in u_df dataframe every frame
+    u_all[frame_idx] = u.copy()
 
     # update animation by one frame interval
     ax.set_title(f"2D Pond Wave simulation\nFrame = {frame_idx} --- t = {t_display:.2f} s")
