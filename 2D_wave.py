@@ -31,7 +31,7 @@ print("Import complete.")
 # %%
 
 # User parameters
-T = 50                             # total simulation time
+T = 10                             # total simulation time
 save_csv = False
 save_gif = True
 apply_smoothing = False
@@ -95,15 +95,66 @@ XX, YY = np.meshgrid(x, y)
 
 # Initialise the 3 states of the water level u at the:
 # previous, current and next timestep
-u_prev = np.zeros((N_x, N_y))       # u at t-dt
-u = np.zeros((N_x, N_y))            # u at t
-u_next = np.zeros((N_x, N_y))       # u at t+dt
+u_prev = np.zeros((N_x, N_y))           # u at t-dt
+u = np.zeros((N_x, N_y))                # u at t
+u_next = np.zeros((N_x, N_y))           # u at t+dt
+
+
+u_all = np.zeros((n_frames, N_x, N_y))  # 3D array with all u values
+
+def get_u(f: int, x_coord: float, y_coord: float, u: np.ndarray = u_all) -> float:
+    """Get the value of u at a given frame index f and coordinates (x, y).
+
+    Parameters:
+        f (int): frame index
+        x_coord (float): x coordinate
+        y_coord (float): y coordinate
+        u (np.ndarray): 3D array with all u values (default: u_all)
+
+    Returns:
+        float: value of u at the given frame index and coordinates
+    """
+
+    x_i = np.argwhere(x==x_coord)[0,0]
+    y_i = np.argwhere(y==y_coord)[0,0]
+    return(u[f,x_i,y_i])
 
 print("Problem setup complete.")
 
 
 # Set up disturbance
-d_loc = (5.0,5.0)   # location (x, y)
+x_loc = 5.0     # x coordinate
+y_loc = 5.0     # y coordinate
+
+def find_nearest(axis: np.ndarray, location: float) -> float:
+    """Find the nearest node on the meshgrid to a given location.
+
+    Parameters:
+        axis (np.ndarray): 1D array of x or y coordinates
+        location (float): location to find the nearest node to
+
+    Returns:
+        float: nearest node on the meshgrid to the given location
+    """
+
+    axis = np.asarray(axis)
+    idx = (np.abs(axis - location)).argmin()
+    return(axis[idx])
+
+
+if np.argwhere(x==x_loc).size==0:
+    x_loc = find_nearest(x, x_loc)
+    print(f"Adjusted disturbance location for the available grid: {x_loc = :.1f}")
+
+if np.argwhere(y==y_loc).size==0:
+    y_loc = find_nearest(y, y_loc)
+    print(f"Adjusted disturbance location for the available grid: {y_loc = :.1f}")
+
+# grid array indices of disturbance location
+x_idx = np.argwhere(x==x_loc)[0,0]  # index on x grid array
+y_idx = np.argwhere(y==y_loc)[0,0]  # index on y grid array
+
+
 
 def disturb(t: float) -> float:
     """Generate a sinusoidal disturbance active in the first 2.5 seconds.
@@ -125,23 +176,24 @@ def disturb(t: float) -> float:
 # unnormalised gaussian mask for smoothing
 sigma = 0.05     # radius of disturbance region
 
-def gaussian_smoothing(location: tuple[float], sigma: float) -> np.ndarray[float]:
+def gaussian_smoothing(x_d: float, y_d: float, sigma: float) -> np.ndarray[float]:
     """Generate a 2D Gaussian mask for smoothing the disturbance.
 
     Parameters:
-        location (tuple[float]): coordinates of the disturbance location
+        x_d (float): x coordinate of the disturbance location
+        y_d (float): y coordinate of the disturbance location
         sigma (float): standard deviation of the Gaussian mask
 
     Returns:
         np.ndarray: 2D Gaussian mask for smoothing the disturbance
     """
 
-    x_d, y_d = location
     G = np.exp(-((XX-x_d)**2 + (YY-y_d)**2) / (2 * sigma**2))
     return(G)
 
 
-G = gaussian_smoothing(d_loc, sigma)
+G = gaussian_smoothing(x_loc, y_loc, sigma)
+
 if apply_smoothing:
     print(f"Applying Gaussian smoothing with: {sigma = :.2f}")
 else:
@@ -152,18 +204,24 @@ print("Disturbance preparation complete.")
 
 # %%
 
-
 def rem_b(array: np.ndarray) -> np.ndarray:
-    """Remove boundary elements from a 2D array.
+    """Remove boundary elements from n-D array.
 
     Parameters:
-        array (np.ndarray): 2D array to remove boundary elements from
+        array (np.ndarray): array to remove boundary elements from
 
     Returns:
-        np.ndarray: 2D array with boundary elements removed
+        np.ndarray: array with boundary elements removed
     """
 
-    return (array[1:-1, 1:-1])
+    if len(array.shape)==1:
+        return(array[1:-1])
+    elif len(array.shape)==2:
+        return(array[1:-1, 1:-1])
+    elif len(array.shape)==3:
+        return(array[1:-1, 1:-1, 1:-1])
+    else:
+        raise Exception(f"Array given has {len(array.shape)} dimensions.")
 
 
 
@@ -207,27 +265,23 @@ def update_water_level(frame_idx: int) -> image.AxesImage:
         lap = (u_21 + u_01 + u_12 + u_10 - 4*u_11) / h**2
 
 
-        # calculate the disturbance and apply Gaussian smoothing
-        # stops the simulation from crashing
-        disturbance = disturb(t) * G
-
-        xx_idx,yy_idx = np.argwhere((rem_b(XX)==d_loc[0]) & (rem_b(YY)==d_loc[1]))[0]
-
-
         # use finite differences method in time to calculate new water level u
         leapfrog_term = 2*rem_b(u) - rem_b(u_prev)
         spatial_term = c**2 * dt**2 * lap
         friction = v * dt * (rem_b(u) - rem_b(u_prev))
 
+        # calculate the disturbance and apply Gaussian smoothing if needed
         if apply_smoothing:
-            disturbance_term = dt**2 * rem_b(disturbance)
+            disturbance = disturb(t) * G
+            dist_term = dt**2 * rem_b(disturbance)
         else:
-            # without smoothing (also works now!)
-            dist = dt**2 * disturb(t)
-            disturbance_term = np.zeros_like(lap)
-            disturbance_term[xx_idx, yy_idx] = dist
+            # without smoothing
+            disturbance = dt**2 * disturb(t)
+            disturbance_matrix = np.zeros_like(u)
+            disturbance_matrix[x_idx, y_idx] = disturbance
+            dist_term = rem_b(disturbance_matrix)
 
-        u_next[1:-1, 1:-1] = leapfrog_term + spatial_term - friction + disturbance_term
+        u_next[1:-1, 1:-1] = leapfrog_term + spatial_term - friction + dist_term
 
 
         # Setting boundary conditions before next step
@@ -246,7 +300,7 @@ def update_water_level(frame_idx: int) -> image.AxesImage:
 
     print(f"Generating frame {frame_idx} / {n_frames-1}")
 
-    # store data every 5 frames
+    # write data every 5 frames
     if save_csv and frame_idx % (fps_gif//2) == 0:
         # print(f"Writing CSV: frame {frame_idx} / {n_frames-1}")
 
@@ -261,6 +315,9 @@ def update_water_level(frame_idx: int) -> image.AxesImage:
         with open(csv_path, "a") as f:
             np.savetxt(f, rows, delimiter=",")
 
+
+    # save u in u_df dataframe every frame
+    u_all[frame_idx] = u.copy()
 
     # update animation by one frame interval
     ax.set_title(f"2D Pond Wave simulation\nFrame = {frame_idx} --- t = {t_display:.2f} s")
