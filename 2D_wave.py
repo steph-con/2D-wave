@@ -34,7 +34,7 @@ print("Import complete.")
 # User parameters
 T = 10                             # total simulation time
 save_csv = False
-save_gif = True
+save_figures = True
 apply_smoothing = False
 output_folder = "test"
 
@@ -433,15 +433,13 @@ anim = animation.FuncAnimation(
 gif_name = f"2D_pond_wave_simulation_{timestamp}.gif"
 
 # save animation
-if save_gif:
+if save_figures:
     print(f"Saving animation as {gif_name}.\n")
     anim.save(gif_name, writer="pillow", fps=fps_gif, dpi=120)
 
 
-os.chdir(cwd)
 
 fig.show()
-print("Script finished.")
 plt.close(fig)
 
 
@@ -456,7 +454,18 @@ def calculate_energy(
     dtime: float = time_per_frame,
     gspace: float = h,
     c: float = c
-) -> tuple[np.ndarray]:
+) -> pd.DataFrame:
+    """Calculate the kinetic and potential energies of the system.
+
+    Args:
+        u_all (np.ndarray, optional): 3D array with all u values. Defaults to u_all.
+        dtime (float, optional): Time step duration (s). Defaults to time_per_frame.
+        gspace (float, optional): Grid spacing. Defaults to h.
+        c (float, optional): wave speed. Defaults to c.
+
+    Returns:
+        pd.DataFrame: Dataframe with the different energy types in the system
+    """
 
     num = u_all.shape[0]
     kinetic = np.zeros(num)
@@ -467,11 +476,14 @@ def calculate_energy(
         u_curr = u_all[k]
         u_pr = u_all[k-1]
 
-        kinetic[k] = 0.5 * np.sum(((u_curr - u_pr)/dtime)**2)
+        velocity = (u_curr - u_pr) / dtime
+        kinetic[k] = 0.5 * np.sum(velocity**2) * gspace**2
+
+        # kinetic[k] = 0.5 * np.sum(((u_curr - u_pr)/dtime)**2)
 
         gradx = (u_curr[2:,1:-1] - u_curr[:-2,1:-1])/(2*gspace)
         grady = (u_curr[1:-1,2:] - u_curr[1:-1,:-2])/(2*gspace)
-        potential[k] = 0.5 * c**2 * np.sum(gradx**2 + grady**2)
+        potential[k] = 0.5 * c**2 * np.sum(gradx**2 + grady**2) * gspace**2
 
 
     df = pd.DataFrame({"Kinetic": kinetic, "Potential": potential })
@@ -487,10 +499,7 @@ energy_df["Time"] = time_history
 energy_df = energy_df.set_index("Time")
 
 # energy plot
-en_fig = plt.figure()
-# sns.lineplot(data = energy_df, x="Time", y="Total")
-# sns.lineplot(data = energy_df, x="Time", y="Potential")
-# sns.lineplot(data = energy_df, x="Time", y="Kinetic")
+en_fig = plt.figure(figsize=(6,5))
 sns.lineplot(data = energy_df[["Total", "Potential", "Kinetic"]])
 
 plt.grid(ls=":")
@@ -498,14 +507,22 @@ plt.xlabel("Time (s)")
 plt.ylabel("Energy")
 plt.xlim(left=0, right=T)
 plt.ylim(bottom=0)
-plt.title("History of Total Energy in the system")
+plt.title("History of the energy in the system")
+plt.ticklabel_format(axis="y",useMathText=True, style="sci", scilimits=(0,0))
 plt.legend()
-
 plt.tight_layout()
+
+
+en_fig_name = f"Energy_History_{timestamp}.png"
+if save_figures:
+    print(f"Saving energy history plot as {en_fig_name}.\n")
+    en_fig.savefig(en_fig_name, format="png", dpi=300)
+
 plt.show()
 
-
+# %%
+# Final print statement
+os.chdir(cwd)
+print("Script finished.")
 print(f"--- {time.time() - start_time:.2f} seconds ---")
 
-
-# %%
