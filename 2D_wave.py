@@ -468,23 +468,36 @@ def calculate_energy(
     """
 
     num = u_all.shape[0]
-    kinetic = np.zeros(num)
-    potential = np.zeros(num)
+    # kinetic = np.zeros(num)
+    # potential = np.zeros(num)
     frames = range(0,num)
 
-    for k in frames[1:]:
-        u_curr = u_all[k]
-        u_pr = u_all[k-1]
+    u_curr = u_all[1:]
+    u_pr = u_all[:-1]
 
-        velocity = (u_curr - u_pr) / dtime
-        kinetic[k] = 0.5 * np.sum(velocity**2) * gspace**2
+    # System starts from rest
+    vel0 = np.zeros((1,) + u_all.shape[1:])
+    vel = (u_curr - u_pr) / dtime
+    velocity = np.concatenate((vel0,vel), axis=0)
+    kinetic = 0.5 * np.sum(velocity**2, axis=(1,2)) * gspace **2
 
-        # kinetic[k] = 0.5 * np.sum(((u_curr - u_pr)/dtime)**2)
+    gradx = (u_all[:, 2:, 1:-1] - u_all[:, :-2, 1:-1]) / (2 * gspace)
+    grady = (u_all[:, 1:-1, 2:] - u_all[:, 1:-1, :-2]) / (2 * gspace)
 
-        gradx = (u_curr[2:,1:-1] - u_curr[:-2,1:-1])/(2*gspace)
-        grady = (u_curr[1:-1,2:] - u_curr[1:-1,:-2])/(2*gspace)
-        potential[k] = 0.5 * c**2 * np.sum(gradx**2 + grady**2) * gspace**2
+    potential = 0.5 * c**2 * np.sum(gradx**2 + grady**2, axis=(1,2)) * gspace**2
 
+    # for k in frames[1:]:
+    #     u_curr = u_all[k]
+    #     u_pr = u_all[k-1]
+
+    #     velocity = (u_curr - u_pr) / dtime
+    #     kinetic[k] = 0.5 * np.sum(velocity**2) * gspace**2
+
+    #     # kinetic[k] = 0.5 * np.sum(((u_curr - u_pr)/dtime)**2)
+
+    #     gradx = (u_curr[2:,1:-1] - u_curr[:-2,1:-1])/(2*gspace)
+    #     grady = (u_curr[1:-1,2:] - u_curr[1:-1,:-2])/(2*gspace)
+    #     potential[k] = 0.5 * c**2 * np.sum(gradx**2 + grady**2) * gspace**2
 
     df = pd.DataFrame({"Kinetic": kinetic, "Potential": potential })
     df["Total"] = df["Kinetic"] + df["Potential"]
