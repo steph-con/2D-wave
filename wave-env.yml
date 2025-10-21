@@ -12,3 +12,4 @@ dependencies:
   - ipympl=0.9.7
   - jupytext=1.17.3
   - qt=6.7.2
+  - seaborn=0.13.2
